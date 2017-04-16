@@ -26,7 +26,8 @@ class ServerThread(Thread):
         print "New thread started for "+ip+":"+str(port)
 
     def run(self):
-        self.sock.send('220 Welcome to IPOP Bluetooth Nodes Network!\r\n')
+        self.sock.send('220 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nWelcome to IPOP Network of Bluetooth Nodes!\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        
         while True:
             cmd = self.sock.recv(BUFFER_SIZE)
             if not cmd: 
@@ -48,7 +49,7 @@ class ServerThread(Thread):
         for key in device_list.keys():
             bt += key + '\n'
        
-        packet_len = str(len(k))
+        packet_len = str(len(bt))
         
         head_len_list = list("00000")
         packet_len_list = list(packet_len)
@@ -65,14 +66,20 @@ class ServerThread(Thread):
         
         self.sock.send(header)
 
-        self.sock.send(k)
+        self.sock.send(bt)
 
-   def READ(self, cmd):
-        device_id = cmd[5:22]
-        
-        
-        
-        
+    def READ(self, cmd):
+        if(len(cmd) <= 5):
+            self.sock.send("Try again with appropriate command")
+        else:
+            device_id = cmd[5:22]
+            data = self.bt_devices.read_data(device_id)
+            self.sock.send(data)
+       
+    def SCAN(self, cmd):
+        self.bt_devices.scan_for_devices()
+        self.sock.send("300 OK")  
+     
 if __name__ == '__main__':
     ipop_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     ipop_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

@@ -4,6 +4,7 @@ from bluetooth import *
 
 bt_device_name = "IPOP_BT_DEVICE"
 bt_service_name = "IPOP_Bluetooth_Service"
+port = 01
 
 class bluetooth_devices_class():
     def __init__(self):
@@ -21,16 +22,15 @@ class bluetooth_devices_class():
     def read_data(self, device_id):
         if device_id in self.bt_device_dict:
             host = self.bt_device_dict[device_id]
-            port = 01
             sock=BluetoothSocket( RFCOMM )
             sock.connect((host, port))
             sock.send("hello!!")
             
             data = sock.recv(1024)
-            print "Received data:"
-            print data
-            print "\n"
+            
             sock.close()
+            
+        return data
 
     def list_devices(self):
         print "-----------------------------" 
@@ -41,7 +41,7 @@ class bluetooth_devices_class():
             print key + " : " + value
         
         print "========================================"
-
+    
     def get_devices_list(self):
         return self.bt_device_dict
-    
+
