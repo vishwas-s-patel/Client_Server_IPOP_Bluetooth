@@ -36,12 +36,21 @@ class ClientThread(Thread):
         self.sock.send(cmd)
         data = self.sock.recv(BUFFER_SIZE)
         print 'DATA READ IS:\r\n'
+        print data
 
     def HELP(self, cmd):
-        print 'list : Lists all Bluetooth node devices in the Server n/w\n'
+        print 'cmd              : Action undertaken'
+        print '------------------------------------'
+        print 'list             : Lists all Bluetooth node devices in the Server\n'
+        print 'scan             : Scans for the devices again and updates the table\n'
+        print 'read(deviced_id) : reads the data from the bluetooth device with the specified ID\n'
    
     def SCAN(self, cmd):
+        print 'Scanning for Bluetooth devices again ...'
         self.sock.send(cmd)
+        data = self.sock.recv(BUFFER_SIZE)
+        if(data[0:3] == '300'):
+            print "Scanned for devices again, use 'list' command to list the devices"
 
     def LIST(self, cmd):
         self.sock.send(cmd)
