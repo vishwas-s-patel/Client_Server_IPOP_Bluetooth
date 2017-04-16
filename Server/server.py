@@ -1,6 +1,7 @@
 import socket                   # Import socket module
 import logging
 import json
+from bt_nodes import bluetooth_devices_class
 
 import socket
 from threading import Thread
@@ -10,93 +11,93 @@ IPOP_IP = '172.31.0.1'
 IPOP_PORT = 5222
 BUFFER_SIZE = 1024
 
-class ClientThread(Thread):
+class ServerThread(Thread):
 
     def __init__(self,ip,port,sock):
         Thread.__init__(self)
         self.ip = ip
         self.port = port
         self.sock = sock
-        print " New thread started for "+ip+":"+str(port)
+        
+        self.bt_devices = bluetooth_devices_class()
+        self.bt_devices.scan_for_devices()
+        self.bt_devices.list_devices()
+        
+        print "New thread started for "+ip+":"+str(port)
 
     def run(self):
-        filename='mytext.txt'
-        f = open(filename,'rb')
+        self.sock.send('220 Welcome to IPOP Bluetooth Nodes Network!\r\n')
         while True:
-            l = f.read(BUFFER_SIZE)
-            while (l):
-                self.sock.send(l)
-                #print('Sent ',repr(l))
-                l = f.read(BUFFER_SIZE)
-            if not l:
-                f.close()
-                self.sock.close()
+            cmd = self.sock.recv(BUFFER_SIZE)
+            if not cmd: 
                 break
+            else:
+                print 'Received: ', cmd
+                try:
+                    func = getattr(self, cmd[:4].strip().upper())
+                    func(cmd)
+                except Exception, e:
+                    print 'Error:', e
+                    self.sock.send('Sorry! Encountered error.\r\n')
+                    
+    
+    def LIST(self, cmd):
+        device_list = self.bt_devices.get_devices_list()
+       
+        bt = '' 
+        for key in device_list.keys():
+            bt += key + '\n'
+       
+        packet_len = str(len(k))
+        
+        head_len_list = list("00000")
+        packet_len_list = list(packet_len)
+        
+        it = -1
+        
+        for i in range(len(packet_len_list)):
+            head_len_list[it] = packet_len_list[it]
+            it = it -1 
+        
+        packed_packet_len = ''.join(head_len_list)
 
+        header = '150 ' + packed_packet_len + ' '
+        
+        self.sock.send(header)
 
-class ClientPort():
-    def __init__(self,ip,port,sock):
-        self.ip = ip
-        self.port = port
-        self.sock = sock
-        print "New Client REQ received "+ip+":"+str(port)
+        self.sock.send(k)
 
-    def get_open_port(self):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(("",0))
-        s.listen(1)
-        port = s.getsockname()[1]
-        s.close()
-        return port
-
-    def set_new_port(self, port):
-        self.port = port
-
-    def send_new_port_to_client(self, port):
-        self.sock.send(str(port))        
-        data = self.sock.recv()
-        print "================="
-        print data
-        print "================="
-
-        if(data == 'ACK'):
-            return 0
-        else:
-            return 1
-
+   def READ(self, cmd):
+        device_id = cmd[5:22]
+        
+        
+        
+        
 if __name__ == '__main__':
     ipop_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     ipop_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     ipop_sock.bind((IPOP_IP, IPOP_PORT))
     threads = []
+   
+    device_id = "IPOP_BT_DEVICE_01"
     
     while True:        
         ipop_sock.listen(5)
         
         print "Waiting for incoming connections..."
+        
         (conn, (ip,port)) = ipop_sock.accept()
 
         print 'Got connection from ', (ip,port)
-        ##################################################################################
-        # Create the client Port and tell the client to recieve data from different port #
-        ##################################################################################
-        '''newClient = ClientPort(ip, port, conn)
-        new_port = newClient.get_open_port()
-        print "new_port " + str(new_port)
-
-        if(newClient.send_new_port_to_client(new_port)):
-            print "Client ACK the new port: " + new_port
-        else:
-            print "Client NOT_ACK the new port: " + new_port
-
-        newClient.set_port(new_port)'''
         ####################################################
         # Create new threads for every new Client request  #
         ####################################################
-        newthread = ClientThread(ip, port, conn)
+        
+        newthread = ServerThread(ip, port, conn)
+        newthread.daemon = True
         newthread.start()
+        
         threads.append(newthread)
         
     for t in threads:
         t.join()
-
