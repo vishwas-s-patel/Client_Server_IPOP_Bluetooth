@@ -1,32 +1,87 @@
 import socket
+import sys
+import time
+
+from threading import Thread
+from SocketServer import ThreadingMixIn
 
 TCP_IP = '172.31.0.1'
 TCP_PORT = 5222
 BUFFER_SIZE = 1024
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect((TCP_IP, TCP_PORT))
+class ClientThread(Thread):
+    
+    def __init__(self, ip, port, sock):
+        Thread.__init__(self)
+        self.ip = ip
+        self.port = port
+        self.sock = sock
+        
+    def run(self): 
+        data = self.sock.recv(BUFFER_SIZE)
+        print 'Client connected to Server\r\n'
+        cmd = data[0:3]
+        if(cmd == '220'):
+            print data[4:]
+        while True:
+            cmd = raw_input("cmd$ ")
+            try:
+                func = getattr(self, cmd[0:4].strip().upper())
+                func(cmd)
+            except Exception, e:
+                print 'Error:', e
 
-s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s1.connect((TCP_IP, TCP_PORT))
 
+    def READ(self, cmd):
+        self.sock.send(cmd)
+        data = self.sock.recv(BUFFER_SIZE)
+        print 'DATA READ IS:\r\n'
 
-with open('received_file', 'wb') as f:
-    print 'file opened'
+    def HELP(self, cmd):
+        print 'list : Lists all Bluetooth node devices in the Server n/w\n'
+   
+    def SCAN(self, cmd):
+        self.sock.send(cmd)
+
+    def LIST(self, cmd):
+        self.sock.send(cmd)
+        data = ''
+        data = self.sock.recv(BUFFER_SIZE)
+        #print data
+        if(data[0:3] == '150'):
+            recv_len = int(data[4:9])
+        
+        print "Length is :", recv_len
+            
+        while len(data) < recv_len:
+            recv_data = self.sock.recv(BUFFER_SIZE)
+            data = data + recv_data
+            #print data
+            
+        print "============="
+        print "Devices List:"
+        print "============="
+        
+        data = data[10:]
+        data_list = data.split("\n")
+        for i in data_list:
+            print i
+
+if __name__ == '__main__':
+    threads = []
+    print 'Client booting ...'
+    ipop_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ipop_sock.connect((TCP_IP, TCP_PORT))
+    print 'Client Trying Connection to :', TCP_IP
+    client = ClientThread(TCP_IP, TCP_PORT, ipop_sock)
+    client.daemon = True
+    client.start()
+    
+    threads.append(client)
+
     while True:
-        data = s.recv(BUFFER_SIZE)
-        data1 = s1.recv(BUFFER_SIZE)
-        print('data=%s', (data))
-        print('data1=%s', (data))
-        if not data:
-            f.close()
-            print 'file close()'
-            break
-        # write data to a file
-        f.write(data)
-        f.write(data1)
+            time.sleep(1)
 
-print('Successfully get the file')
-s.close()
-s1.close()
-print('connection closed')
+    for t in threads:
+        t.join()
+
